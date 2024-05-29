@@ -1,0 +1,288 @@
+---
+title: "Github copy"
+output: html_notebook
+---
+
+
+Load Libraries
+```{r}
+library(lavaan)
+library(haven)
+library(psych)
+library(GPArotation)
+library(moments)
+```
+Load Data
+Clean Data, make sure your data has columns representing each question
+```{r}
+data2<-read_dta("C:/Users/Downloads/data2.dta")
+```
+CFA on Self Determination
+Already have a theory on grouping so we are testing it
+```{r}
+selfDeterminationModel <- '
+  autonomyLatent =~ Aut_1+Aut_2+Aut_3+Aut_4
+  competenceLatent =~ Com_1+Com_2+Com_3+Com_4
+  relatednessLatent =~ Rel_1+Rel_2+Rel_3+Rel_4
+'
+
+fit <- cfa(selfDeterminationModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+Cronbach Alpha on Self Determination
+```{r}
+# Cronbach's Alpha for Each Subscale
+alpha_autonomy <- alpha(data2[, c("Aut_1", "Aut_2", "Aut_3", "Aut_4")]) 
+alpha_autonomy 
+alpha_competence <- alpha(data2[, c("Com_1", "Com_2", "Com_3", "Com_4")])
+alpha_competence
+alpha_relatedness <- alpha(data2[, c("Rel_1", "Rel_2", "Rel_3", "Rel_4")])
+alpha_relatedness
+alpha_basic_needs <- alpha(data2[, c("Aut_1", "Aut_2", "Aut_3", "Aut_4", "Com_1", "Com_2", "Com_3", "Com_4", "Rel_1", "Rel_2", "Rel_3", "Rel_4")])
+alpha_basic_needs
+```
+EFA for Emotional Experiences
+Two theories for groupings, 3 groups (Enjoyment, boredom, anxiety) or 2 groups (enjoyment and negative emotion)
+USed EFA, scree plot, and parallel analysis to test if 2 or 3 factors best represents the data.
+Two of anxiety items did not lead well so they were removed
+```{r}
+data_for_efa <- data2[, c("Enj_1","Enj_2","Enj_3","Enj_4","Bor_1","Bor_2","Bor_3","Anx_1","Anx_2","Anx_3")]
+data_for_efa <- na.omit(data_for_efa)
+scree(data_for_efa)
+fa.parallel(data_for_efa, fa = "fa")
+efa_result <- factanal(data_for_efa, factors = 2, rotation = "varimax")
+print(efa_result)
+
+EmotionModel <- '
+  enjoymentLatent =~ Enj_1+Enj_2+Enj_3+Enj_4
+  boredomLatent =~ Bor_1+Bor_2+Bor_3
+  anxietyLatent =~ Anx_1+Anx_2+Anx_3
+'
+
+fit <- cfa(EmotionModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+CFA on Emotional Expereinces to test the 2 factor model
+```{r}
+cor(data2[c("Enj_1","Enj_2","Enj_3","Enj_4","Bor_1","Bor_2","Bor_3","Anx_1","Anx_2","Anx_3")], use = "complete.obs")
+EmotionModel <- '
+  enjoymentLatent =~ Enj_1+Enj_2+Enj_3+Enj_4
+  boredomAnxietyLatent =~ Bor_1+Bor_2+Bor_3+Anx_3
+'
+
+fit <- cfa(EmotionModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+Cronbach ALpha on Emotional Experiences
+```{r}
+# Calculating Cronbach's Alpha for Emotional Experiences
+alpha_enjoyment <- alpha(data2[, c("Enj_1", "Enj_2", "Enj_3", "Enj_4")])
+alpha_enjoyment 
+alpha_anxiety <- alpha(data2[, c("Anx_1", "Anx_2", "Anx_3")])
+alpha_anxiety 
+alpha_boredom <- alpha(data2[, c("Bor_1", "Bor_2", "Bor_3")])
+alpha_boredom 
+alpha_emotional <- alpha(data2[, c("Enj_1", "Enj_2", "Enj_3", "Enj_4", "Anx_1", "Anx_2", "Anx_3", "Bor_1", "Bor_2", "Bor_3")],check.keys=TRUE)
+alpha_emotional
+
+# Regrouping
+alpha_anxietyBoredom <- alpha(data2[, c( "Anx_3", "Bor_1", "Bor_2", "Bor_3")])
+alpha_anxietyBoredom 
+alpha_emotionalRemovals <- alpha(data2[, c("Enj_1", "Enj_2", "Enj_3", "Enj_4", "Anx_3", "Bor_1", "Bor_2", "Bor_3")],check.keys=TRUE)
+alpha_emotionalRemovals 
+
+all_responses <- c(data2$Anx_3, data2$Bor_1, data2$Bor_2, data2$Bor_3)
+sd(all_responses, na.rm = T)
+skewness(all_responses, na.rm=T)
+kurtosis(all_responses, na.rm = T)
+```
+CFA on Motivation Model
+testing existing theory
+```{r}
+cor(data2[c("Int_1"+"Int_2","Int_3"+"Int_4","Self_1"+"Self_2"+"Self_3"+"Self_4""Ext_1"+"Ext_2"+"Ext_3"+"Ext_4""Amo_1"+"Amo_2"+"Amo_3"+"Amo_4")], use = "complete.obs")
+MotivationModel <- '
+  intrinsicLatent =~ Int_1+Int_2+Int_3+Int_4
+  introjectLatent =~ Self_1+Self_2+Self_3+Self_4
+  externalLatent =~ Ext_1+Ext_2+Ext_3
+  amotivatedLatent =~ Amo_1+Amo_2+Amo_3+Amo_4
+'
+fit <- cfa(MotivationModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+EFA on motivation (given that intrinsic seemed to load with identified)
+tried 3 and 4 factor model, went with 3
+```{r}
+data_for_efa <- data2[, c("Int_1","Int_2","Int_3","Int_4","Self_1","Self_2","Self_3","Self_4","Ext_1","Ext_2","Ext_3","Ext_4","Amo_1","Amo_2","Amo_3","Amo_4")]
+data_for_efa <- na.omit(data_for_efa)
+scree(data_for_efa)
+fa.parallel(data_for_efa, fa = "fa")
+efa_result <- factanal(data_for_efa, factors = 4, rotation = "varimax")
+print(efa_result)
+alpha(data2[c("Int_1","Int_2","Int_3","Int_4")])
+
+MotivationModel <- '
+  intrinsicLatent =~ Int_1+Int_2+Int_3+Int_4+Self_1+Self_2+Self_3+Self_4
+  externalLatent =~ Ext_1+Ext_2+Ext_3
+  amotivatedLatent =~ Amo_1+Amo_2+Amo_3+Amo_4
+'
+fit <- cfa(MotivationModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+Cronbach alpha Motivation
+```{r}
+# Calculating Cronbach's Alpha for Motivation
+alpha_intrinsic <- alpha(data2[, c("Int_1", "Int_2", "Int_3", "Int_4")])
+alpha_intrinsic 
+alpha_self <- alpha(data2[, c("Self_1", "Self_2", "Self_3", "Self_4")])
+alpha_self 
+alpha_positiveEmotion <- alpha(data2[, c("Int_1", "Int_2", "Int_3", "Int_4", "Self_1", "Self_2", "Self_3", "Self_4")])
+alpha_positiveEmotion 
+alpha_external <- alpha(data2[, c("Ext_1", "Ext_2", "Ext_3", "Ext_4")])
+alpha_external 
+alpha_externalRemoval <- alpha(data2[, c("Ext_1", "Ext_2", "Ext_3")])
+alpha_externalRemoval 
+alpha_amotivated <- alpha(data2[, c("Amo_1", "Amo_2", "Amo_3", "Amo_4")])
+alpha_amotivated 
+alpha_motivation <- alpha(data2[, c("Int_1", "Int_2", "Int_3", "Int_4", "Self_1", "Self_2", "Self_3", "Self_4", "Ext_1", "Ext_2", "Ext_3", "Ext_4", "Amo_1", "Amo_2", "Amo_3", "Amo_4")], check.keys=TRUE)
+alpha_motivation 
+alpha_motivationRemoval <- alpha(data2[, c("Int_1", "Int_2", "Int_3", "Int_4", "Self_1", "Self_2", "Self_3", "Self_4", "Ext_1", "Ext_2", "Ext_3", "Amo_1", "Amo_2", "Amo_3", "Amo_4")], check.keys=TRUE)
+alpha_motivationRemoval 
+
+all_responses <- c(data2$Int_1, data2$Int_2, data2$Int_3, data2$Int_4, data2$Self_1, data2$Self_2, data2$Self_3, data2$Self_4)
+all_responses <- c(data2$Ext_1, data2$Ext_2, data2$Ext_3)
+
+mean(all_responses, na.rm = T)
+sd(all_responses, na.rm = T)
+skewness(all_responses, na.rm=T)
+kurtosis(all_responses, na.rm = T)
+```
+Implementation Model
+EFA to explore grouping, ran 3 and 4 factors, 3 fit best
+```{r}
+data_for_efa <- data2[, c("Imp_1","Imp_2","Imp_3","Imp_4","Imp_5","Imp_6","Imp_7","Imp_8","Imp_9","Imp_10","Imp_11","Imp_12")]
+data_for_efa <- na.omit(data_for_efa)
+scree(data_for_efa)
+fa.parallel(data_for_efa, fa = "fa")
+efa_result <- factanal(data_for_efa, factors = 3, rotation = "varimax")
+print(efa_result)
+```
+Cronbach alpha Implementation
+```{r}
+# Cronbach's Alpha for Implementation
+alpha_implementation <- alpha(data2[, c("Imp_1", "Imp_2", "Imp_3", "Imp_4", "Imp_5", "Imp_6", "Imp_7", "Imp_8", "Imp_9", "Imp_10", "Imp_11", "Imp_12")])
+alpha_implementation 
+
+# Identify
+alpha_identify <- alpha(data2[, c("Imp_1", "Imp_2", "Imp_3", "Imp_4")])
+alpha_identify
+# Inquire/Assess
+alpha_inquire <- alpha(data2[, c("Imp_5", "Imp_6", "Imp_7", "Imp_8")])
+alpha_inquire
+# Manage
+alpha_manage <- alpha(data2[, c("Imp_9", "Imp_10", "Imp_11", "Imp_12")])
+alpha_manage 
+```
+CFA Implementation
+```{r}
+SBTAModel <- '
+  identifyLatent =~ Imp_1+Imp_2+Imp_3+Imp_4
+  inquireLatent =~ Imp_5+Imp_6+Imp_7+Imp_8
+  manageLatent =~ Imp_9+Imp_10+Imp_11+Imp_12
+'
+fit <- cfa(SBTAModel, data=data2)
+summary(fit, fit.measures=TRUE)
+```
+SEM Model - Full model
+```{r}
+# SEM model specification
+semModel <- '
+  # Measurement Model
+  autonomyLatent =~ Aut_1 + Aut_2 + Aut_3 + Aut_4
+  competenceLatent =~ Com_1 + Com_2 + Com_3 + Com_4
+  relatednessLatent =~ Rel_1 + Rel_2 + Rel_3 + Rel_4
+  
+  enjoymentLatent =~ Enj_1 + Enj_2 + Enj_3 + Enj_4
+  boredomAnxietyLatent =~ Bor_1 + Bor_2 + Bor_3 + Anx_3
+
+  intrinsicLatent =~ Int_1+Int_2+Int_3+Int_4+Self_1+Self_2+Self_3+Self_4
+  externalLatent =~ Ext_1 + Ext_2 + Ext_3
+  amotivatedLatent =~ Amo_1 + Amo_2 + Amo_3 + Amo_4
+
+  identifyLatent =~ Imp_1 + Imp_2 + Imp_3 + Imp_4
+  inquireLatent =~ Imp_5 + Imp_6 + Imp_7 + Imp_8
+  manageLatent =~ Imp_9 + Imp_10 + Imp_11 + Imp_12
+
+  # Structural Model
+  intrinsicLatent ~ autonomyLatent + competenceLatent + relatednessLatent + enjoymentLatent + boredomAnxietyLatent
+  externalLatent ~ autonomyLatent + competenceLatent + relatednessLatent + enjoymentLatent + boredomAnxietyLatent
+  amotivatedLatent ~ autonomyLatent + competenceLatent + relatednessLatent + enjoymentLatent + boredomAnxietyLatent
+  
+  identifyLatent ~ intrinsicLatent + externalLatent + amotivatedLatent 
+  inquireLatent ~ intrinsicLatent + externalLatent + amotivatedLatent 
+  manageLatent ~ intrinsicLatent + externalLatent + amotivatedLatent 
+
+  # Covariance Specifications
+  
+  intrinsicLatent ~~ amotivatedLatent
+  intrinsicLatent ~~ externalLatent
+  externalLatent ~~ amotivatedLatent
+  
+  autonomyLatent ~~ competenceLatent
+  autonomyLatent ~~ relatednessLatent
+  competenceLatent ~~ relatednessLatent
+
+  enjoymentLatent ~~ boredomAnxietyLatent
+
+  identifyLatent ~~ inquireLatent
+  identifyLatent ~~ manageLatent
+  inquireLatent ~~ manageLatent
+
+'
+
+# Fit the model
+fit <- sem(semModel, data=data2)
+
+# Summary of the fit
+summary(fit, fit.measures=TRUE)
+```
+Separate Roles
+Create RoleComparison variable where Leadership = 1 and Practitioners=2
+```{r}
+# Step 1: Create the RoleComparison column
+data2 <- data2 %>%
+  mutate(RoleComparison = case_when(
+    Role %in% c(1,2,6,7) ~ 1,
+    Role %in% c(8,9,5,10,11,12) ~ 2,
+    TRUE ~ NA_real_ # Assign NA for rows that don't meet the conditions
+  ))
+
+# Step 2: Filter out rows with NA in RoleComparison and rename the dataset
+dataRole <- data2 %>%
+  filter(!is.na(RoleComparison))
+
+table(dataRole$RoleComparison)
+```
+Create 2 dataframes,one with leadership another with student support
+```{r}
+# Create dataframe where RoleComparison is 1
+dataRole1 <- dataRole %>%
+  filter(RoleComparison == 1)
+
+# Create dataframe where RoleComparison is 2
+dataRole2 <- dataRole %>%
+  filter(RoleComparison == 2)
+```
+Test the Two Roles
+```{r}
+# Fit the model
+fit1 <- sem(semModel, data=dataRole1)
+
+# Summary of the fit
+summary(fit1, fit.measures=TRUE)
+# Fit the model
+fit2 <- sem(semModel, data=dataRole2)
+
+# Summary of the fit
+summary(fit2, fit.measures=TRUE)
+```
+
